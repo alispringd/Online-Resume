@@ -1,0 +1,40 @@
+
+
+p{
+    font-weight: bold;
+    font-size: 20px;
+}
+
+#top{
+    text-decoration: underline;
+}
+.emphasizedText{
+    font-style: italic;
+    color: #fcfcfc;
+}
+
+body{
+    background-color: #4d61f7;
+    font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    text-align: center;
+    border: 25px solid rgb(255, 255, 255);
+    margin: 100px;
+    padding: 40px;
+    color:#fcfcfc
+}
+
+.centered-list{
+    padding-left: 0%;
+    list-style-position: outside;
+    margin: 0 auto;
+    display: table;
+    text-align: left;
+}
+
+a{
+    color:#89e7ff
+}
+
+div{
+    float:none;
+}
