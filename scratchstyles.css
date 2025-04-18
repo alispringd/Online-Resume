@@ -32,8 +32,12 @@ body{
     text-align: left;
 }
 
-.emphasizedList{
-    font-style: italic;
+.theHeader{
+    font-style: normal;
+    font-weight: bold;
+    color: #fcfcfc;
+    border:10px #89e7ff solid;
+    padding: 15px;
 }
 a{
     color:#89e7ff
