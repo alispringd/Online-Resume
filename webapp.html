@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Pinball Game</title>
+  <style>
+    body {
+      background: #222;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+    canvas {
+      background: #111;
+      border: 4px solid #0ff;
+      border-radius: 16px;
+      box-shadow: 0 0 40px #0ff8;
+      display: block;
+    }
+    h1 {
+      color: #0ff;
+      text-align: center;
+      font-family: 'Arial Black', Arial, sans-serif;
+      margin-bottom: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div>
+    <h1>Pinball Game</h1>
+    <canvas id="pinball" width="400" height="600"></canvas>
+    <p style="color:#fff;text-align:center;">Use &larr; and &rarr; to control flippers</p>
+  </div>
+  <script>
+    // Canvas setup
+    const canvas = document.getElementById('pinball');
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width;
+    const H = canvas.height;
+
+    // Ball properties
+    let ball = {
+      x: W/2,
+      y: H-100,
+      radius: 12,
+      vx: 2,
+      vy: -6,
+      color: '#0ff'
+    };
+
+    // Flipper properties (pivot at outside edge)
+    const flipperLength = 150;
+    const flipperWidth = 16;
+    const flipperRestAngle = Math.PI / 8; // resting angle
+    const flipperActiveAngle = Math.PI / 3; // how far it swings
+
+    // Flipper positions
+    const flipperY = H - 60;
+    const flipperAxleOffset = 40; // 40px from edge
+
+    // Left flipper pivots at leftmost point
+    let leftFlipper = {
+      x: flipperAxleOffset,
+      y: flipperY,
+      angle: flipperRestAngle,
+      isActive: false
+    };
+    // Right flipper pivots at rightmost point
+    let rightFlipper = {
+      x: W - flipperAxleOffset,
+      y: flipperY,
+      angle: -flipperRestAngle,
+      isActive: false
+    };
+
+    // Bumper properties (blue and orange)
+    const bumpers = [
+      {x: W/2, y: 200, r: 25, color: '#00f'}, // Blue
+      {x: W/2-80, y: 300, r: 18, color: '#f60'}, // Orange
+      {x: W/2+80, y: 300, r: 18, color: '#f60'} // Orange
+    ];
+
+    // Game state
+    let isGameOver = false;
+    let score = 0;
+
+    // Draw functions
+    function drawBall() {
+      ctx.beginPath();
+      ctx.arc(ball.x, ball.y, ball.radius, 0, 2 * Math.PI);
+      ctx.fillStyle = ball.color;
+      ctx.shadowColor = '#0ff';
+      ctx.shadowBlur = 10;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.closePath();
+    }
+
+    // Flipper drawing: pivot at outside edge, rotate outward
+    function drawFlipper(f, isLeft) {
+      ctx.save();
+      ctx.translate(f.x, f.y);
+      ctx.rotate(f.angle);
+      ctx.fillStyle = '#f44';
+      // Flipper extends right for left flipper, left for right flipper
+      if (isLeft) {
+        ctx.fillRect(0, -flipperWidth/2, flipperLength, flipperWidth);
+        // Draw pivot circle
+        ctx.beginPath();
+        ctx.arc(0, 0, flipperWidth/2, 0, 2 * Math.PI);
+        ctx.fillStyle = '#fff';
+        ctx.fill();
+      } else {
+        ctx.fillRect(-flipperLength, -flipperWidth/2, flipperLength, flipperWidth);
+        // Draw pivot circle
+        ctx.beginPath();
+        ctx.arc(0, 0, flipperWidth/2, 0, 2 * Math.PI);
+        ctx.fillStyle = '#fff';
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    function drawBumpers() {
+      bumpers.forEach(b => {
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, b.r, 0, 2 * Math.PI);
+        ctx.fillStyle = b.color;
+        ctx.shadowColor = b.color;
+        ctx.shadowBlur = 15;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.closePath();
+      });
+    }
+
+    function drawScore() {
+      ctx.font = "bold 22px Arial";
+      ctx.fillStyle = "#fff";
+      ctx.fillText("Score: " + score, 20, 30);
+    }
+
+    function drawGameOver() {
+      ctx.font = "bold 40px Arial";
+      ctx.fillStyle = "#f44";
+      ctx.textAlign = "center";
+      ctx.fillText("GAME OVER", W/2, H/2);
+      ctx.font = "bold 20px Arial";
+      ctx.fillStyle = "#fff";
+      ctx.fillText("Press Space to Restart", W/2, H/2 + 40);
+      ctx.textAlign = "left";
+    }
+
+    // Physics and collision
+    function updateBall() {
+      ball.x += ball.vx;
+      ball.y += ball.vy;
+      ball.vy += 0.18; // gravity
+
+      // Wall collisions
+      if (ball.x - ball.radius < 0) {
+        ball.x = ball.radius;
+        ball.vx *= -1;
+      }
+      if (ball.x + ball.radius > W) {
+        ball.x = W - ball.radius;
+        ball.vx *= -1;
+      }
+      if (ball.y - ball.radius < 0) {
+        ball.y = ball.radius;
+        ball.vy *= -1;
+      }
+
+      // Flipper collisions
+      checkFlipperCollision(leftFlipper, true);
+      checkFlipperCollision(rightFlipper, false);
+
+      // Bumper collisions
+      bumpers.forEach(b => {
+        let dx = ball.x - b.x;
+        let dy = ball.y - b.y;
+        let dist = Math.sqrt(dx*dx + dy*dy);
+        if (dist < ball.radius + b.r) {
+          // Reflect ball
+          let angle = Math.atan2(dy, dx);
+          let speed = Math.sqrt(ball.vx*ball.vx + ball.vy*ball.vy) + 1;
+          ball.vx = Math.cos(angle) * speed;
+          ball.vy = Math.sin(angle) * speed;
+          score += 100;
+        }
+      });
+
+      // Bottom (game over)
+      if (ball.y - ball.radius > H) {
+        isGameOver = true;
+      }
+    }
+
+    // Flipper collision: adjust for new pivot
+    function checkFlipperCollision(f, isLeft) {
+      // Flipper endpoints
+      let fx1 = f.x;
+      let fy1 = f.y;
+      let angle = f.angle;
+      let fx2, fy2;
+      if (isLeft) {
+        fx2 = fx1 + flipperLength * Math.cos(angle);
+        fy2 = fy1 + flipperLength * Math.sin(angle);
+      } else {
+        fx2 = fx1 - flipperLength * Math.cos(angle);
+        fy2 = fy1 - flipperLength * Math.sin(angle);
+      }
+
+      // Closest point on flipper to ball
+      let t = ((ball.x - fx1)*(fx2-fx1) + (ball.y-fy1)*(fy2-fy1)) /
+              ((fx2-fx1)*(fx2-fx1) + (fy2-fy1)*(fy2-fy1));
+      t = Math.max(0, Math.min(1, t));
+      let closestX = fx1 + t*(fx2-fx1);
+      let closestY = fy1 + t*(fy2-fy1);
+
+      let dx = ball.x - closestX;
+      let dy = ball.y - closestY;
+      let dist = Math.sqrt(dx*dx + dy*dy);
+
+      if (dist < ball.radius + flipperWidth/2 && ball.y < f.y + 10) {
+        // Reflect ball
+        let normalAngle = Math.atan2(dy, dx);
+        let speed = Math.sqrt(ball.vx*ball.vx + ball.vy*ball.vy) + 2;
+        ball.vx = Math.cos(normalAngle) * speed;
+        ball.vy = Math.sin(normalAngle) * speed;
+        score += 10;
+      }
+    }
+
+    // Flipper controls
+    document.addEventListener('keydown', e => {
+      if (e.code === 'ArrowLeft') leftFlipper.isActive = true;
+      if (e.code === 'ArrowRight') rightFlipper.isActive = true;
+      if (e.code === 'Space' && isGameOver) restartGame();
+    });
+    document.addEventListener('keyup', e => {
+      if (e.code === 'ArrowLeft') leftFlipper.isActive = false;
+      if (e.code === 'ArrowRight') rightFlipper.isActive = false;
+    });
+
+    function updateFlippers() {
+      // Animate flipper angles (pivot at outside, swing outward)
+      leftFlipper.angle += ((leftFlipper.isActive ? -flipperActiveAngle : flipperRestAngle) - leftFlipper.angle) * 0.3;
+      rightFlipper.angle += ((rightFlipper.isActive ? flipperActiveAngle : -flipperRestAngle) - rightFlipper.angle) * 0.3;
+    }
+
+    // Game loop
+    function gameLoop() {
+      ctx.clearRect(0, 0, W, H);
+
+      drawBumpers();
+      drawFlipper(leftFlipper, true);
+      drawFlipper(rightFlipper, false);
+      drawBall();
+      drawScore();
+
+      if (!isGameOver) {
+        updateBall();
+        updateFlippers();
+        requestAnimationFrame(gameLoop);
+      } else {
+        drawGameOver();
+      }
+    }
+
+    function restartGame() {
+      ball.x = W/2;
+      ball.y = H-100;
+      ball.vx = 2;
+      ball.vy = -6;
+      score = 0;
+      isGameOver = false;
+      leftFlipper.angle = flipperRestAngle;
+      rightFlipper.angle = -flipperRestAngle;
+      gameLoop();
+    }
+
+    // Start game
+    gameLoop();
+  </script>
+</body>
+</html>
