@@ -32,8 +32,10 @@ body{
     text-align: left;
 }
 
-.theHeader{
-   text-decoration: underline;
+.border{
+ 
+     border: 3px solid white; /* 3px thickness, solid style, dark gray color */
+      
 }
 
 a{
